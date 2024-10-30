@@ -93,7 +93,7 @@ pub fn execute_receive(
     // wrapper.sender is the contract
     
     let api = deps.api;
-    execute_transfer(deps, env, msg, wrapper.amount, api.addr_validate(&wrapper.sender)?, info.sender.to_string())
+    execute_transfer(deps, env, msg, wrapper.amount, wrapper.memo, api.addr_validate(&wrapper.sender)?, info.sender.to_string())
 }
 
 pub fn execute_transfer(
@@ -101,6 +101,7 @@ pub fn execute_transfer(
     env: Env,
     msg: TransferMsg,
     amount: Uint128,
+    memo: Option<String>,
     sender: Addr,
     contract: String
 ) -> Result<Response, ContractError> {
@@ -121,12 +122,15 @@ pub fn execute_transfer(
     let denom = String::from(uw_allow_info.clone().port + "/" + msg.channel.as_str() + "/" + native_denom.clone().unwrap().as_str());
     let code_hash = uw_allow_info.code_hash;
     // build ics20 packet
-    let packet = Ics20Packet::new(
+    let mut packet = Ics20Packet::new(
         amount,
         denom,
         sender.as_ref(),
         &msg.remote_address,
     );
+    if let Some(m) = memo {
+        packet.memo = m;
+    }
     packet.validate()?;
 
     // prepare ibc message
@@ -149,7 +153,8 @@ pub fn execute_transfer(
         .add_attribute("sender", &packet.sender)
         .add_attribute("receiver", &packet.receiver)
         .add_attribute("denom", &packet.denom)
-        .add_attribute("amount", &packet.amount.to_string());
+        .add_attribute("amount", &packet.amount.to_string())
+        .add_attribute("memo", &packet.memo.to_string());
 
     Ok(res)
 }

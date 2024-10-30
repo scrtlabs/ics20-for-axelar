@@ -10,6 +10,7 @@ pub struct Cw20ReceiveMsg {
     pub sender: String,
     pub amount: Uint128,
     pub msg: Binary,
+    pub memo: Option<String>,
 }
 
 impl Cw20ReceiveMsg {
