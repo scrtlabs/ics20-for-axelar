@@ -5,12 +5,12 @@ use cosmwasm_std::{
     StdResult, WasmMsg, Uint128, SubMsg
 };
 
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use cw20::{Cw20ReceiveMsg};
 
 use crate::error::ContractError;
 use crate::ibc::{Ics20Packet, burn_amount};
-use crate::msg::{AllowMsg, AllowedResponse, ExecuteMsg, InitMsg, QueryMsg, TransferMsg};
+use crate::msg::{AllowMsg, AllowedResponse, ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, TransferMsg};
 use crate::state::{AllowInfo, ADMIN, ALLOW_LIST, ALLOW_LIST_ADDR_2_DENOM, CHANNEL_INFO}; // increase_channel_balance
 use cw_utils::nonpayable;
 
@@ -93,7 +93,7 @@ pub fn execute_receive(
     // wrapper.sender is the contract
     
     let api = deps.api;
-    execute_transfer(deps, env, msg, wrapper.amount, api.addr_validate(&wrapper.sender)?, info.sender.to_string())
+    execute_transfer(deps, env, msg, wrapper.amount, wrapper.memo, api.addr_validate(&wrapper.sender)?, info.sender.to_string())
 }
 
 pub fn execute_transfer(
@@ -101,6 +101,7 @@ pub fn execute_transfer(
     env: Env,
     msg: TransferMsg,
     amount: Uint128,
+    memo: Option<String>,
     sender: Addr,
     contract: String
 ) -> Result<Response, ContractError> {
@@ -126,7 +127,7 @@ pub fn execute_transfer(
         denom,
         sender.as_ref(),
         &msg.remote_address,
-    );
+    ).with_memo(memo);
     packet.validate()?;
 
     // prepare ibc message
@@ -149,7 +150,8 @@ pub fn execute_transfer(
         .add_attribute("sender", &packet.sender)
         .add_attribute("receiver", &packet.receiver)
         .add_attribute("denom", &packet.denom)
-        .add_attribute("amount", &packet.amount.to_string());
+        .add_attribute("amount", &packet.amount.to_string())
+        .add_attribute("memo", packet.memo.as_deref().unwrap_or(""));
 
     Ok(res)
 }
@@ -197,6 +199,38 @@ pub fn execute_allow(
             funds: vec![],
         });
     Ok(res)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, ContractError> {
+    // Get the current contract version from storage
+    let previous_version = get_contract_version(deps.storage)?;
+
+    // Validate that we're migrating from the same contract type
+    if previous_version.contract != CONTRACT_NAME {
+        return Err(ContractError::CannotMigrate {
+            previous_contract: previous_version.contract,
+        });
+    }
+
+    // Verify ADMIN state is accessible (doesn't matter if it's set or not)
+    let _ = ADMIN.query_admin(deps.as_ref());
+    
+    // Update the contract version to the new version
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("previous_version", previous_version.version)
+        .add_attribute("new_version", CONTRACT_VERSION)
+        .add_attribute("state_preserved", "true")
+        .add_attribute("admin_preserved", "true")
+        .add_attribute("channels_preserved", "true")
+        .add_attribute("allow_list_preserved", "true"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

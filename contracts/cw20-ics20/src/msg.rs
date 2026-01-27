@@ -98,3 +98,8 @@ pub struct AllowedInfo {
     pub contract: String,
     pub gas_limit: Option<u64>,
 }
+
+/// MigrateMsg is empty since we don't need any migration parameters
+/// All state is preserved automatically
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}
