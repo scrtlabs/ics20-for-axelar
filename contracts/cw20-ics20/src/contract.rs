@@ -122,15 +122,12 @@ pub fn execute_transfer(
     let denom = String::from(uw_allow_info.clone().port + "/" + msg.channel.as_str() + "/" + native_denom.clone().unwrap().as_str());
     let code_hash = uw_allow_info.code_hash;
     // build ics20 packet
-    let mut packet = Ics20Packet::new(
+    let packet = Ics20Packet::new(
         amount,
         denom,
         sender.as_ref(),
         &msg.remote_address,
-    );
-    if let Some(m) = memo {
-        packet.memo = m;
-    }
+    ).with_memo(memo);
     packet.validate()?;
 
     // prepare ibc message
@@ -154,7 +151,7 @@ pub fn execute_transfer(
         .add_attribute("receiver", &packet.receiver)
         .add_attribute("denom", &packet.denom)
         .add_attribute("amount", &packet.amount.to_string())
-        .add_attribute("memo", &packet.memo.to_string());
+        .add_attribute("memo", packet.memo.as_deref().unwrap_or(""));
 
     Ok(res)
 }

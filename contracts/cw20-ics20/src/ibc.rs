@@ -32,8 +32,8 @@ pub struct Ics20Packet {
     pub receiver: String,
     /// the sender address
     pub sender: String,
-    /// ibc transfer memo
-    pub memo: String
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memo: Option<String>,
 }
 
 impl Ics20Packet {
@@ -43,8 +43,12 @@ impl Ics20Packet {
             amount,
             sender: sender.to_string(),
             receiver: receiver.to_string(),
-            memo: "".to_string(),
+            memo: None,
         }
+    }
+
+    pub fn with_memo(self, memo: Option<String>) -> Self {
+        Ics20Packet { memo, ..self }
     }
 
     pub fn validate(&self) -> Result<(), ContractError> {
@@ -251,7 +255,7 @@ fn do_ibc_packet_receive(
         .add_attribute("receiver", msg.receiver)
         .add_attribute("denom", denom)
         .add_attribute("amount", msg.amount)
-        .add_attribute("memo", msg.memo)
+        .add_attribute("memo", msg.memo.as_deref().unwrap_or(""))
         .add_attribute("success", "true");
 
     Ok(res)
