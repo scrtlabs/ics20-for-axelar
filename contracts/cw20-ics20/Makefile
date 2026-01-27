@@ -14,10 +14,11 @@ build: src/*.rs Cargo.toml Cargo.lock
 
 .PHONY: build-reproducible
 build-reproducible:
-	docker run --rm -v "$$(pwd)":/contract \
-		--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/code/target \
+	docker run --rm \
+		-v "$$(pwd)/../..":/code \
+		-w /code/contracts/cw20-ics20 \
 		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-		enigmampc/secret-contract-optimizer:1.0.9
+		ghcr.io/scrtlabs/secret-contract-optimizer:1.0.13
 
 .PHONY: clean
 clean:
